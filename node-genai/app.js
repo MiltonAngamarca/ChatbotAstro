@@ -89,7 +89,7 @@ async function callLLMAPI(userMessage) {
     if (error.response) {
       throw new Error(
         `API returned status code ${error.response.status}: ${JSON.stringify(
-          error.response.data
+          error
         )}`
       );
     }
