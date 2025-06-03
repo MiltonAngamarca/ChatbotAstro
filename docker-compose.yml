@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "172.17.0.1:host-gateway"
-      - "172.17.0.1:model-runner.docker.internal"
+      # - "172.17.0.1:model-runner.docker.internal"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://172.17.0.1:8080/health"]
       interval: 30s
