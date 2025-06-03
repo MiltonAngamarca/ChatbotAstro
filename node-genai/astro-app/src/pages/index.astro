@@ -9,24 +9,11 @@ import Layout from '../layouts/Layout.astro';
       <div class='max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4'>
         <div class='flex items-center justify-between'>
           <div class='flex items-center space-x-2 sm:space-x-3'>
-            <div
-              class='w-7 h-7 sm:w-8 sm:h-8 bg-emerald-600 rounded-lg flex items-center justify-center'
-            >
-              <svg
-                class='w-4 h-4 sm:w-5 sm:h-5 text-white'
-                fill='currentColor'
-                viewBox='0 0 20 20'
-              >
-                <path
-                  fill-rule='evenodd'
-                  d='M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z'
-                  clip-rule='evenodd'
-                ></path>
-              </svg>
-            </div>
-            <h1 class='text-lg sm:text-xl lg:text-2xl font-bold text-slate-900'>
-              Z-Chat
-            </h1>
+            <img
+              src='/src/assets/logo-Sorti-IA.png'
+              alt='Z-Chat Logo'
+              class='h-8 w-auto'
+            />
           </div>
         </div>
       </div>
@@ -37,13 +24,13 @@ import Layout from '../layouts/Layout.astro';
     >
       <!-- Sidebar with Chat List -->
       <aside
-        class='w-full md:w-64 lg:w-80 bg-slate-900 flex flex-col shadow-lg md:rounded-xl overflow-hidden order-2 md:order-1'
+        class='w-full md:w-64 lg:w-80 bg-green-950 flex flex-col shadow-lg md:rounded-xl overflow-hidden order-2 md:order-1'
       >
         <!-- Sidebar Header -->
-        <div class='p-3 sm:p-4 border-b border-slate-700'>
+        <div class='p-3 sm:p-4 border-b border-amber-50'>
           <button
             id='sidebar-new-chat-btn'
-            class='w-full p-2 sm:p-3 bg-transparent border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-800 transition-colors flex items-center justify-center space-x-2'
+            class='w-full p-2 sm:p-3 bg-transparent border border-amber-50 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center space-x-2'
           >
             <svg
               class='w-3 h-3 sm:w-4 sm:h-4'
@@ -67,10 +54,10 @@ import Layout from '../layouts/Layout.astro';
         </div>
 
         <!-- Sidebar Footer -->
-        <div class='p-3 sm:p-4 border-t border-slate-700'>
+        <div class='p-3 sm:p-4 border-t border-amber-50'>
           <button
             id='clear-all-btn'
-            class='w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs text-slate-400 hover:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors'
+            class='w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs text-white hover:text-white hover:bg-green-500 rounded-lg transition-colors'
           >
             Limpiar conversaciones
           </button>
@@ -89,7 +76,7 @@ import Layout from '../layouts/Layout.astro';
                 <div>
                   <h3
                     id='chat-title'
-                    class='text-slate-900 font-semibold text-base sm:text-lg'
+                    class='text-slate-800 font-semibold text-base sm:text-lg'
                   >
                     <span id='dynamic-model-title'>GPT-4</span>
                   </h3>
@@ -468,7 +455,11 @@ import Layout from '../layouts/Layout.astro';
       this.createNewChat();
     }
 
-    addMessage(role: 'user' | 'bot', content: string): void {
+    addMessage(
+      role: 'user' | 'bot',
+      content: string,
+      shouldScroll: boolean = true
+    ): void {
       if (!this.currentChatId) return;
 
       const chat = this.chats.get(this.currentChatId);
@@ -495,7 +486,7 @@ import Layout from '../layouts/Layout.astro';
       }
 
       this.saveChats();
-      this.renderMessages(chat.messages);
+      this.addMessageToDOM(role, content, shouldScroll);
       this.renderChatList(); // Update last activity time
     }
 
@@ -606,15 +597,23 @@ import Layout from '../layouts/Layout.astro';
         </div>
       `;
 
-      // Add all messages
-      messages.forEach((message) => {
-        this.addMessageToDOM(message.role, message.content);
+      // Add all messages (don't auto-scroll when rendering existing messages)
+      messages.forEach((message, index) => {
+        const isLastMessage = index === messages.length - 1;
+        this.addMessageToDOM(message.role, message.content, isLastMessage);
       });
     }
 
-    private addMessageToDOM(role: 'user' | 'bot', content: string): void {
+    private addMessageToDOM(
+      role: 'user' | 'bot',
+      content: string,
+      shouldScroll: boolean = true
+    ): void {
       const chatBox = document.getElementById('chat-box');
       if (!chatBox) return;
+
+      // Check if user is near the bottom before adding message
+      const wasNearBottom = this.isNearBottom(chatBox);
 
       const messageDiv = document.createElement('div');
 
@@ -654,7 +653,19 @@ import Layout from '../layouts/Layout.astro';
       }
 
       chatBox.appendChild(messageDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Only scroll if user was near bottom or if it's a user message or shouldScroll is true
+      if (shouldScroll && (wasNearBottom || role === 'user')) {
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+    }
+
+    private isNearBottom(element: HTMLElement): boolean {
+      const threshold = 100; // pixels from bottom
+      return (
+        element.scrollTop + element.clientHeight >=
+        element.scrollHeight - threshold
+      );
     }
 
     private escapeHtml(text: string): string {
@@ -820,6 +831,12 @@ import Layout from '../layouts/Layout.astro';
       let message = messageInput.value.trim();
       if (!message) return;
 
+      // Disable send button and input during request
+      sendButton.disabled = true;
+      messageInput.disabled = true;
+      sendButton.classList.add('opacity-50', 'cursor-not-allowed');
+      messageInput.classList.add('opacity-50');
+
       const messageForApi = message + ' en español';
       // Add user message to current chat
       chatManager.addMessage('user', message);
@@ -844,6 +861,7 @@ import Layout from '../layouts/Layout.astro';
       `;
       if (chatBox) {
         chatBox.appendChild(loadingDiv);
+        // Always scroll to bottom when showing loading indicator
         chatBox.scrollTop = chatBox.scrollHeight;
       }
 
@@ -881,6 +899,14 @@ import Layout from '../layouts/Layout.astro';
             'Lo siento, encontré un error. Por favor, inténtalo de nuevo.'
           );
           console.error('Error:', error);
+        })
+        .finally(() => {
+          // Re-enable send button and input
+          sendButton.disabled = false;
+          messageInput.disabled = false;
+          sendButton.classList.remove('opacity-50', 'cursor-not-allowed');
+          messageInput.classList.remove('opacity-50');
+          messageInput.focus();
         });
     }
 
