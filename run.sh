@@ -17,4 +17,4 @@ docker model pull $LLM_MODEL_NAME
 
 # Build and run Docker container
 echo "Running Docker Compose..."
-docker compose up --build
+docker compose up -d
