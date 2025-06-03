@@ -13,10 +13,14 @@ const PORT = process.env.PORT || 8080;
 // Helper functions
 function getLLMEndpoint() {
   const baseUrl = process.env.LLM_BASE_URL;
+  console.log(baseUrl);
+
   return `${baseUrl}/chat/completions`;
 }
 
 function getModelName() {
+  console.log(process.env.LLM_MODEL_NAME);
+
   return process.env.LLM_MODEL_NAME;
 }
 
@@ -105,7 +109,7 @@ function checkEnvFile() {
   if (!fs.existsSync('.env')) {
     console.log('Creating default .env file...');
     const defaultEnv = `# Configuration for the LLM service
-LLM_BASE_URL=http://host.docker.internal:12434/engines/llama.cpp/v1
+LLM_BASE_URL=http://172.17.0.1:12434/engines/llama.cpp/v1
 LLM_MODEL_NAME=ignaciolopezluna020/llama3.2:1b
 `;
     fs.writeFileSync('.env', defaultEnv);
