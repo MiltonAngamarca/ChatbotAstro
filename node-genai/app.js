@@ -26,13 +26,15 @@ function getModelName() {
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'astro-app', 'dist')));
 
-// Explicitly serve assets from the public folder
+// Explicitly serve assets from the public folder first
 app.use(
   '/assets',
   express.static(path.join(__dirname, 'astro-app', 'dist', 'assets'))
 );
+
+// General static files middleware
+app.use(express.static(path.join(__dirname, 'astro-app', 'dist')));
 
 // Routes
 app.get('/', (req, res) => {
