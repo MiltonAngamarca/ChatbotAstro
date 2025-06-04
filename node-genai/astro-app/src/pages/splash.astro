@@ -1,0 +1,18 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SplashScreen from '../components/SplashScreen.tsx';
+---
+
+<Layout title='Sorti.IA - Bienvenido'>
+  <div id='splash-container'>
+    <SplashScreen client:load />
+  </div>
+</Layout>
+
+<script>
+  // Prevent back navigation to splash
+  window.history.pushState(null, '', window.location.href);
+  window.addEventListener('popstate', function () {
+    window.history.pushState(null, '', window.location.href);
+  });
+</script>

@@ -1,0 +1,329 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
+import ChatHeader from '../components/ChatHeader.astro';
+import ChatBox from '../components/ChatBox.astro';
+import ChatInput from '../components/ChatInput.astro';
+import Modals from '../components/Modals.astro';
+---
+
+<Layout title='Z-Chat Chat'>
+  <div class='min-h-screen bg-slate-50 flex flex-col'>
+    <!-- Header Component -->
+    <Header />
+
+    <div
+      class='flex-1 flex flex-col md:flex-row w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 gap-3 sm:gap-4 md:gap-6'
+    >
+      <!-- Sidebar Component -->
+      <Sidebar />
+
+      <!-- Main Chat Container -->
+      <main class='flex-1 flex flex-col min-h-0 order-1 md:order-2 min-w-0'>
+        <div
+          class='bg-white md:rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex-1 flex flex-col w-full'
+        >
+          <!-- Chat Header Component -->
+          <ChatHeader />
+
+          <!-- Chat Messages Area Component -->
+          <ChatBox />
+
+          <!-- Input Area Component -->
+          <ChatInput />
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modals Component -->
+  <Modals />
+</Layout>
+
+<script>
+  import { ChatManager } from '../scripts/chatManager.ts';
+
+  // Initialize ChatManager
+  const chatManager = new ChatManager();
+
+  // DOM elements
+  const messageInput = document.getElementById(
+    'message-input'
+  ) as HTMLTextAreaElement;
+  const sendButton = document.getElementById(
+    'send-button'
+  ) as HTMLButtonElement;
+  const clearAllBtn = document.getElementById(
+    'clear-all-btn'
+  ) as HTMLButtonElement;
+  const renameChatBtn = document.getElementById(
+    'rename-chat-btn'
+  ) as HTMLButtonElement;
+  const deleteChatBtn = document.getElementById(
+    'delete-chat-btn'
+  ) as HTMLButtonElement;
+  const renameModal = document.getElementById('rename-modal') as HTMLElement;
+  const renameInput = document.getElementById(
+    'rename-input'
+  ) as HTMLInputElement;
+  const confirmRename = document.getElementById(
+    'confirm-rename'
+  ) as HTMLButtonElement;
+  const cancelRename = document.getElementById(
+    'cancel-rename'
+  ) as HTMLButtonElement;
+
+  // Auto-resize function for textarea
+  function autoResize() {
+    messageInput.style.height = 'auto';
+    messageInput.style.height = messageInput.scrollHeight + 'px';
+  }
+
+  // Add event listener for auto-resize
+  messageInput.addEventListener('input', autoResize);
+
+  // Fetch model name from API
+  fetch('/api/model')
+    .then((response) => response.json())
+    .then((data) => {
+      const modelName = data.model || 'AI Language Model';
+      const modelNameSpan = document.getElementById('model-name');
+      const dynamicModelTitle = document.getElementById('dynamic-model-title');
+      if (modelNameSpan) {
+        modelNameSpan.textContent = modelName;
+      }
+      if (dynamicModelTitle) {
+        dynamicModelTitle.textContent = modelName;
+      }
+      if (messageInput) {
+        messageInput.placeholder = `Envía un mensaje a ${modelName}...`;
+      }
+    })
+    .catch((error) => {
+      const modelNameSpan = document.getElementById('model-name');
+      if (modelNameSpan) {
+        modelNameSpan.textContent = 'AI Language Model';
+      }
+    });
+
+  function sendMessage() {
+    let message = messageInput.value.trim();
+    if (!message) return;
+
+    // Disable send button and input during request
+    sendButton.disabled = true;
+    messageInput.disabled = true;
+    sendButton.classList.add('opacity-50', 'cursor-not-allowed');
+    messageInput.classList.add('opacity-50');
+
+    const messageForApi = message + ' en español';
+    // Add user message to current chat
+    chatManager.addMessage('user', message);
+    messageInput.value = '';
+    autoResize();
+
+    // Show loading indicator
+    const chatBox = document.getElementById('chat-box');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'flex items-start space-x-3';
+    loadingDiv.innerHTML = `
+        <div class="flex-shrink-0">
+          <div class="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </div>
+        <div class="flex-1">
+          <div class="bg-white/80 backdrop-blur-sm rounded-2xl px-4 py-3 max-w-md shadow-sm border border-gray-200">
+            <p class="text-gray-600 italic text-sm">Pensando...</p>
+          </div>
+        </div>
+      `;
+    if (chatBox) {
+      chatBox.appendChild(loadingDiv);
+      // Always scroll to bottom when showing loading indicator
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // Send message to API
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: messageForApi }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        // Remove loading indicator
+        if (loadingDiv.parentNode) {
+          loadingDiv.parentNode.removeChild(loadingDiv);
+        }
+
+        // Add bot's response to current chat
+        if (data.error) {
+          chatManager.addMessage(
+            'assistant',
+            'Lo siento, encontré un error. Por favor, inténtalo de nuevo.'
+          );
+        } else {
+          chatManager.addMessage('assistant', data.response);
+        }
+      })
+      .catch((error) => {
+        // Remove loading indicator
+        if (loadingDiv.parentNode) {
+          loadingDiv.parentNode.removeChild(loadingDiv);
+        }
+        // Show error message
+        chatManager.addMessage(
+          'assistant',
+          'Lo siento, encontré un error. Por favor, inténtalo de nuevo.'
+        );
+        console.error('Error:', error);
+      })
+      .finally(() => {
+        // Re-enable send button and input
+        sendButton.disabled = false;
+        messageInput.disabled = false;
+        sendButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        messageInput.classList.remove('opacity-50');
+        messageInput.focus();
+      });
+  }
+
+  // Event listeners
+  sendButton.addEventListener('click', sendMessage);
+  messageInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // New chat button event listener
+  const sidebarNewChatBtn = document.getElementById('sidebar-new-chat-btn');
+  if (sidebarNewChatBtn) {
+    sidebarNewChatBtn.addEventListener('click', () => {
+      chatManager.createNewChat();
+    });
+  }
+
+  clearAllBtn.addEventListener('click', () => {
+    const clearAllModal = document.getElementById('clear-all-modal');
+    if (clearAllModal) {
+      clearAllModal.classList.remove('hidden');
+      clearAllModal.classList.add('flex');
+    }
+  });
+
+  renameChatBtn.addEventListener('click', () => {
+    const currentChatId = chatManager.getCurrentChatId();
+    if (currentChatId) {
+      chatManager.showRenameModal(currentChatId);
+    }
+  });
+
+  deleteChatBtn.addEventListener('click', () => {
+    const currentChatId = chatManager.getCurrentChatId();
+    if (currentChatId) {
+      chatManager.confirmDeleteChat(currentChatId);
+    }
+  });
+
+  // Modal event listeners
+  confirmRename.addEventListener('click', () => {
+    const chatId = renameModal.getAttribute('data-chat-id');
+    const newName = renameInput.value.trim();
+
+    if (chatId && newName) {
+      chatManager.renameChat(chatId, newName);
+    }
+
+    renameModal.classList.add('hidden');
+    renameModal.classList.remove('flex');
+  });
+
+  cancelRename.addEventListener('click', () => {
+    renameModal.classList.add('hidden');
+    renameModal.classList.remove('flex');
+  });
+
+  // Close modal on backdrop click
+  renameModal.addEventListener('click', (e) => {
+    if (e.target === renameModal) {
+      renameModal.classList.add('hidden');
+      renameModal.classList.remove('flex');
+    }
+  });
+
+  // Handle Enter key in rename input
+  renameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      confirmRename.click();
+    } else if (e.key === 'Escape') {
+      cancelRename.click();
+    }
+  });
+
+  // Clear all modal event listeners
+  const clearAllModal = document.getElementById('clear-all-modal');
+  const confirmClearAll = document.getElementById('confirm-clear-all');
+  const cancelClearAll = document.getElementById('cancel-clear-all');
+
+  if (confirmClearAll && clearAllModal) {
+    confirmClearAll.addEventListener('click', () => {
+      chatManager.clearAllChats();
+      clearAllModal.classList.add('hidden');
+      clearAllModal.classList.remove('flex');
+    });
+  }
+
+  if (cancelClearAll && clearAllModal) {
+    cancelClearAll.addEventListener('click', () => {
+      clearAllModal.classList.add('hidden');
+      clearAllModal.classList.remove('flex');
+    });
+  }
+
+  // Close clear all modal on backdrop click
+  if (clearAllModal) {
+    clearAllModal.addEventListener('click', (e) => {
+      if (e.target === clearAllModal) {
+        clearAllModal.classList.add('hidden');
+        clearAllModal.classList.remove('flex');
+      }
+    });
+  }
+
+  // Delete chat modal event listeners
+  const deleteChatModal = document.getElementById('delete-chat-modal');
+  const confirmDeleteChatBtn = document.getElementById('confirm-delete-chat');
+  const cancelDeleteChatBtn = document.getElementById('cancel-delete-chat');
+
+  if (confirmDeleteChatBtn && deleteChatModal) {
+    confirmDeleteChatBtn.addEventListener('click', () => {
+      const chatId = deleteChatModal.getAttribute('data-chat-id');
+      if (chatId) {
+        chatManager.deleteChat(chatId);
+      }
+      deleteChatModal.classList.add('hidden');
+      deleteChatModal.classList.remove('flex');
+    });
+  }
+
+  if (cancelDeleteChatBtn && deleteChatModal) {
+    cancelDeleteChatBtn.addEventListener('click', () => {
+      deleteChatModal.classList.add('hidden');
+      deleteChatModal.classList.remove('flex');
+    });
+  }
+
+  // Close delete chat modal on backdrop click
+  if (deleteChatModal) {
+    deleteChatModal.addEventListener('click', (e) => {
+      if (e.target === deleteChatModal) {
+        deleteChatModal.classList.add('hidden');
+        deleteChatModal.classList.remove('flex');
+      }
+    });
+  }
+</script>
