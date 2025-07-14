@@ -10,11 +10,14 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+
+    # Mapear host.docker.internal al gateway del host
     extra_hosts:
-      - "172.17.0.1:host-gateway"
-      # - "172.17.0.1:model-runner.docker.internal"
+      - "host.docker.internal:host-gateway"
+
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://172.17.0.1:8080/health"]
+      # Ahora curl a host.docker.internal en lugar de la IP
+      test: ["CMD", "curl", "-f", "http://host.docker.internal:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
